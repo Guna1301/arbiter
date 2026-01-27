@@ -1,20 +1,20 @@
 import LimiterInterface from "./LimiterInterface.js";
 
 export default class LeakyBucketLimiter extends LimiterInterface{
-    constructor(){
+    constructor(store){
         super();
-        this.buckets = new Map();
+        this.store = store;
     }
 
     async consume(key, limit, windowSec){
         const now = Date.now();
         const leakRate = limit/windowSec;
 
-        if(!this.buckets.has(key)){
-            this.buckets.set(key, {water:0, lastLeak: now});
-        }
+        let bucket = await this.store.get(key);
 
-        const bucket = this.buckets.get(key);
+        if(!bucket){
+            bucket = {water:0, lastLeak: now};
+        }
 
         const elapsed = (now - bucket.lastLeak)/1000;
         const leaked = elapsed * leakRate;
@@ -31,6 +31,8 @@ export default class LeakyBucketLimiter extends LimiterInterface{
         }
 
         bucket.water += 1;
+
+        await this.store.set(key,bucket, windowSec);
 
         return {
             allowed: true,
