@@ -13,7 +13,7 @@ export default class RedisStore extends StorageAdapter {
 
   async set(key, value, ttlSec) {
     if (ttlSec) {
-      await this.client.set(key, JSON.stringify(value), "EX", ttlSec);
+      await this.client.set(key, JSON.stringify(value), { EX: ttlSec });
     } else {
       await this.client.set(key, JSON.stringify(value));
     }

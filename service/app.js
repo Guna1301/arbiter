@@ -1,7 +1,10 @@
 import express from 'express';
 import dotenv from 'dotenv';
 
-import MemoryStore from './storage/MemoryStore.js';
+// import MemoryStore from './storage/MemoryStore.js';
+import { createClient } from 'redis';
+import RedisStore from './storage/RedisStore.js';
+
 import LimiterFactory from './limiter/LimiterFactory.js';
 import PolicyEngine from './policy/PolicyEngine.js';
 import AbuseDetector from './abuse/AbuseDetector.js';
@@ -11,7 +14,14 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-const store = new MemoryStore();
+const redisClient = createClient({
+    url : `redis://${process.env.REDIS_HOST || 'localhost'}:${process.env.REDIS_PORT || 6379}`
+});
+
+await redisClient.connect();
+
+// const store = new MemoryStore();
+const store = new RedisStore(redisClient);
 const limiter = LimiterFactory.create("leaky-bucket", store);
 
 const policy = new PolicyEngine({
