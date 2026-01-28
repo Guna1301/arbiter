@@ -7,15 +7,22 @@ export default class RedisStore extends StorageAdapter {
   }
 
   async get(key) {
-    const value = await this.client.get(key);
-    return value ? JSON.parse(value) : null;
+    if (!key) return null;
+    const data = await this.client.get(key);
+    return data ? JSON.parse(data) : null;
   }
 
   async set(key, value, ttlSec) {
+    if (!key) {
+      throw new Error("RedisStore.set called with empty key");
+    }
+
+    const data = JSON.stringify(value);
+
     if (ttlSec) {
-      await this.client.set(key, JSON.stringify(value), { EX: ttlSec });
+      await this.client.set(key, data, { EX: ttlSec });
     } else {
-      await this.client.set(key, JSON.stringify(value));
+      await this.client.set(key, data);
     }
   }
 }
