@@ -5,8 +5,10 @@ import LimiterFactory from '../limiter/LimiterFactory.js';
 
 const router = express.Router();
 
-export default function createDecideRoute({store, abuse}){
+export default function createDecideRoute({store, abuse, metrics}) {
     router.post("/", async(req,res)=>{
+        const start = Date.now();
+        
         const {
             key, limit, window,
             algorithm,
@@ -39,6 +41,9 @@ export default function createDecideRoute({store, abuse}){
                 reason: "abuse detected"
             });
         }
+
+        const latency = Date.now() - start;
+        metrics.recordRequest(latency, decision.allowed);
 
         return res.json(decision);
     });

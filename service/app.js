@@ -7,6 +7,8 @@ import RedisStore from './storage/RedisStore.js';
 
 import AbuseDetector from './abuse/AbuseDetector.js';
 import createDecideRoute from './routes/decide.js';
+import MetricsCollector from "./metrics/MetricsCollector.js";
+import createMetricsRoute from "./routes/metrics.js";
 
 dotenv.config();
 
@@ -24,7 +26,11 @@ const store = new RedisStore(redisClient);
 
 const abuse = new AbuseDetector(store, {threshold: 5, banTime: 60});
 
-app.use("/decide", createDecideRoute({store, abuse}));
+const metrics = new MetricsCollector();
+
+
+app.use("/decide", createDecideRoute({store, abuse, metrics}));
+app.use("/metrics", createMetricsRoute(metrics));
 
 const PORT = process.env.PORT || 4000;
 
