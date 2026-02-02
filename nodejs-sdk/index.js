@@ -4,8 +4,9 @@ import ArbiterClient from "./guardClient.js";
 export function createArbiterClient(config) {
     const client = new ArbiterClient();
     const defaultAlgorithm = config.defaultAlgorithm || "leaky-bucket";
-    const whitelist = (config.whitelist || []).map(normalizeKey);
-    const blacklist = (config.blacklist || []).map(normalizeKey);
+    const globalWhitelist = (config.whitelist || []).map(normalizeKey);
+    const globalBlacklist = (config.blacklist || []).map(normalizeKey);
+
 
     return {
         async protect({key, rule}){
@@ -17,6 +18,13 @@ export function createArbiterClient(config) {
 
             const algorithm = ruleConfig.algorithm || defaultAlgorithm;
 
+            const policy = {
+                whitelist: (ruleConfig.policy?.whitelist || globalWhitelist).map(normalizeKey),
+                blacklist: (ruleConfig.policy?.blacklist || globalBlacklist).map(normalizeKey),
+            }
+
+            const abuse = ruleConfig.abuse || null;
+
             return client.decide({
                 key: normalizeKey(key),
                 rule:{
@@ -24,10 +32,8 @@ export function createArbiterClient(config) {
                     window: ruleConfig.window,
                     algorithm,
                 },
-                policy:{
-                    whitelist,
-                    blacklist
-                }
+                policy,
+                abuse
             });
         }
     };

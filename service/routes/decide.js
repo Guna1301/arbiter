@@ -2,6 +2,7 @@ import express from 'express';
 
 import PolicyEngine from '../policy/PolicyEngine.js';
 import LimiterFactory from '../limiter/LimiterFactory.js';
+import AbuseDetector from '../abuse/AbuseDetector.js';
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ export default function createDecideRoute({store, abuse, metrics}) {
     router.post("/", async(req,res)=>{
         const start = Date.now();
 
-        const {key, rule, policy } = req.body;
+        const {key, rule, policy, abuse } = req.body;
 
         if(!key || !rule || !rule.limit || !rule.window){
             const latency = Date.now() - start;
@@ -39,9 +40,15 @@ export default function createDecideRoute({store, abuse, metrics}) {
             metrics.recordRequest(latency, false);
             return res.status(400).json({error: `unknown algorithm: ${algorithm}`});
         }
+
         const decision = await limiter.consume(key, rule.limit, rule.window);
 
-        const abuseResult = await abuse.record(key, decision.allowed);
+        const abuseResult = {banned: false};
+        if(abuse){
+            const abuseDetector = new AbuseDetector(store,abuse);
+            abuseResult = await abuseDetector.record(key, decision.allowed);
+        }
+        
         if(abuseResult.banned){
             const latency = Date.now() - start;
             metrics.recordRequest(latency, false);
