@@ -9,6 +9,7 @@ import AbuseDetector from './abuse/AbuseDetector.js';
 import createDecideRoute from './routes/decide.js';
 import MetricsCollector from "./metrics/MetricsCollector.js";
 import createMetricsRoute from "./routes/metrics.js";
+import createHealthRoute from './routes/health.js';
 
 dotenv.config();
 
@@ -31,10 +32,11 @@ const metrics = new MetricsCollector();
 
 app.use("/decide", createDecideRoute({store, abuse, metrics}));
 app.use("/metrics", createMetricsRoute(metrics));
+app.use("/health", createHealthRoute());
 
 const PORT = process.env.PORT || 4000;
 
 app.listen(PORT, ()=>{
     console.log(`arbiter service running on port ${PORT}`);
-    console.log(`DECIDE endpoint: http://localhost:${PORT}/decide`);
+    console.log(`running at: http://localhost:${PORT}`);
 })
