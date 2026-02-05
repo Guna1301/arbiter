@@ -1,44 +1,37 @@
-import LimiterInterface from "./LimiterInterface.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-export default class LeakyBucketLimiter extends LimiterInterface{
-    constructor(store){
-        super();
-        this.store = store;
-    }
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-    async consume(key, limit, windowSec){
-        const now = Date.now();
-        const leakRate = limit/windowSec;
+const script = fs.readFileSync(
+  path.join(__dirname, "leakyBucket.lua"),
+  "utf8"
+);
 
-        let bucket = await this.store.get(key);
+export default class LeakyBucketLimiter {
+  constructor(store) {
+    this.store = store;
+    this.script = script;
+  }
 
-        if(!bucket){
-            bucket = {water:0, lastLeak: now};
-        }
+  async consume(key, limit, window) {
+    const now = Date.now();
 
-        const elapsed = (now - bucket.lastLeak)/1000;
-        const leaked = elapsed * leakRate;
+    const result = await this.store.client.eval(this.script, {
+      keys: [key],
+      arguments: [
+        String(limit),
+        String(window),
+        String(now)
+      ]
+    });
 
-        bucket.water = Math.max(0, bucket.water - leaked);
-        bucket.lastLeak = now;
+    const allowed = result[0] === 1;
+    const remaining = result[1];
+    const resetIn = window;
 
-        if(bucket.water+1 > limit){
-            return{
-                allowed: false,
-                remaining: 0,
-                resetIn: Math.ceil((bucket.water - limit +1)/leakRate)
-            }
-        }
-
-        bucket.water += 1;
-
-        await this.store.set(key,bucket, windowSec);
-
-        return {
-            allowed: true,
-            remaining: Math.floor(limit - bucket.water),
-            resetIn: Math.ceil((bucket.water)/leakRate)
-        };
-    }
-
+    return { allowed, remaining, resetIn };
+  }
 }
