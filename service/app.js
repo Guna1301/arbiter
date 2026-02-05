@@ -16,8 +16,14 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+const redisUrl = process.env.REDIS_URL;
+
+if (!redisUrl) {
+  throw new Error("REDIS_URL is not set");
+}
+
 const redisClient = createClient({
-    url : process.env.REDIS_URL || `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`
+  url: redisUrl
 });
 
 await redisClient.connect();
