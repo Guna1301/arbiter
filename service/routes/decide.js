@@ -23,7 +23,6 @@ export default function createDecideRoute({ store, metrics }) {
     const whitelist = policy?.whitelist || [];
     const blacklist = policy?.blacklist || [];
 
-    // Policy
     const policyEngine = new PolicyEngine({ whitelist, blacklist });
     const policyResult = policyEngine.check(key);
 
@@ -36,7 +35,6 @@ export default function createDecideRoute({ store, metrics }) {
       });
     }
 
-    // Limiter
     const limiter = LimiterFactory.create(algorithm, store);
     if (!limiter) {
       const latency = Date.now() - start;
@@ -48,7 +46,6 @@ export default function createDecideRoute({ store, metrics }) {
 
     const decision = await limiter.consume(key, rule.limit, rule.window);
 
-    // Abuse detection (FIXED)
     let abuseResult = { banned: false };
     if (abuseConfig) {
       const abuseDetector = new AbuseDetector(store, abuseConfig);
