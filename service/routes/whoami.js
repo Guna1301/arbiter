@@ -8,4 +8,5 @@ export default function createWhoamiRoute() {
         const hostname = os.hostname();
         res.json({hostname, timestamp: Date.now(), service:"arbiter"});
     })
+    return router;
 }
