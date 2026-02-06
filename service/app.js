@@ -10,6 +10,7 @@ import createDecideRoute from './routes/decide.js';
 import MetricsCollector from "./metrics/MetricsCollector.js";
 import createMetricsRoute from "./routes/metrics.js";
 import createHealthRoute from './routes/health.js';
+import createWhoamiRoute from './routes/whoami.js';
 
 dotenv.config();
 
@@ -39,6 +40,7 @@ const metrics = new MetricsCollector();
 app.use("/decide", createDecideRoute({store, abuse, metrics}));
 app.use("/metrics", createMetricsRoute(metrics));
 app.use("/health", createHealthRoute());
+app.use("/whoami", createWhoamiRoute());
 
 const PORT = process.env.PORT || 4000;
 
