@@ -7,7 +7,7 @@ Arbiter provides rate limiting, abuse detection, and policy enforcement as a dis
 
 ## What is Arbiter?
 
-Arbiter is a language-agnostic traffic protection service designed to protect backend APIs from abuse and excessive traffic.
+Arbiter is a service that protects backend APIs from abuse and excessive traffic, regardless of the programming language used.
 
 It offers:
 - Rate limiting using Leaky Bucket and Token Bucket algorithms
@@ -68,8 +68,14 @@ Redis (Shared State)
 
 
 
-## Node.js SDK Usage
+## Node.js SDK
 
+### Installation
+
+```bash
+npm install arbiter-sdk
+```
+### Usage
 ```js
 import { createArbiterClient } from "arbiter-sdk";
 
@@ -93,8 +99,6 @@ app.post("/login", async (req, res) => {
 });
 ```
 - For additional usage examples, see `test-app`
-
----
 
 
 ## Benchmarks
