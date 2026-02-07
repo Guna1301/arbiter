@@ -1,5 +1,4 @@
-import ArbiterClient from "./guardClient.js";
-
+import ArbiterClient from "./ArbiterClient.js";
 
 export function createArbiterClient(config) {
     const client = new ArbiterClient();

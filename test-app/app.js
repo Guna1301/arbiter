@@ -6,7 +6,7 @@ const app = express();
 const arbiter = createArbiterClient({
   algorithm: "leaky-bucket",
   whitelist: [],
-  blacklist: ["127.0.0.1"],
+  blacklist: [],
   rules: {
     login: { limit: 3, window: 10 }
   }
