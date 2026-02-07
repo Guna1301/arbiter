@@ -1,5 +1,5 @@
 import express from "express";
-import { createArbiterClient } from "../nodejs-sdk/index.js";
+import { createArbiterClient } from "arbiter-sdk";
 
 const app = express();
 
