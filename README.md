@@ -1,4 +1,5 @@
 # Arbiter
+[![npm version](https://img.shields.io/npm/v/arbiter-sdk.svg)](https://www.npmjs.com/package/arbiter-sdk)
 
 Developer-first, distributed traffic protection service for backend APIs.
 

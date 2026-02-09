@@ -5,7 +5,7 @@ export function createArbiterClient(config) {
     const defaultAlgorithm = config.defaultAlgorithm || "leaky-bucket";
     const globalWhitelist = (config.whitelist || []).map(normalizeKey);
     const globalBlacklist = (config.blacklist || []).map(normalizeKey);
-
+    const globalAbuse = config.abuse || null;
 
     return {
         async protect({key, rule}){
@@ -22,7 +22,7 @@ export function createArbiterClient(config) {
                 blacklist: (ruleConfig.policy?.blacklist || globalBlacklist).map(normalizeKey),
             }
 
-            const abuse = ruleConfig.abuse || null;
+            const abuse = ruleConfig.abuse || globalAbuse;
 
             return client.decide({
                 key: normalizeKey(key),
