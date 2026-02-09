@@ -7,6 +7,19 @@ const router = express.Router();
 
 export default function createDecideRoute({ store, metrics }) {
   router.post("/", async (req, res) => {
+
+    const callerKey = req.headers["x-forwarded-for"] || req.ip;
+    const internalLimiter = LimiterFactory.create(INTERNAL_RULE.algorithm, store);
+
+    const internalDecision = await internalLimiter.consume(`internal:${callerKey}`, INTERNAL_RULE.limit, INTERNAL_RULE.window);
+
+    if(!internalDecision.allowed){
+      return res.status(429).json({
+        allowed: false,
+        reason: "internal_rate_limit_exceeded",
+        resetIn: internalDecision.resetIn
+      });
+    }
     const start = Date.now();
 
     const { key, rule, policy, abuse: abuseConfig } = req.body;

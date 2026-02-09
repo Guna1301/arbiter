@@ -1,10 +1,5 @@
-export default {
-  policy: {
-    whitelist: ["127.0.0.1"],
-    blacklist: ["1.2.3.4"]
-  },
-  abuse: {
-    threshold: 5,
-    banTime: 60
-  }
+const INTERNAL_RULE = {
+  limit: 1000,
+  window: 60,
+  algorithm: "leaky-bucket"
 };
