@@ -1,6 +1,6 @@
 {
   "name": "arbiter-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official Node.js SDK for the Arbiter traffic protection service",
   "type": "module",
   "main": "index.js",
