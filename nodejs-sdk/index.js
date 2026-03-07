@@ -1,6 +1,8 @@
 import ArbiterClient from "./ArbiterClient.js";
 import axios from "axios";
 
+const analyticsQueue = [];
+
 const GATEWAYS = [
   "http://localhost:5000"
 ];
@@ -80,6 +82,31 @@ export function createArbiterClient(config) {
     setInterval(refreshConfig, 60000);
   }
 
+  setInterval(async () => {
+      if (!config.apiKey) return;
+
+      if (analyticsQueue.length === 0) return;
+
+      const batch = analyticsQueue.splice(0, analyticsQueue.length);
+
+      try {
+
+        await axios.post(
+          `${GATEWAYS[0]}/gateway/event/batch`,
+          { events: batch },
+          {
+            headers:{
+              "x-api-key": config.apiKey
+            }
+          }
+        );
+
+      } catch(err) {
+       
+      }
+
+    }, 2000);
+
   return {
     async init() {
 
@@ -119,25 +146,11 @@ export function createArbiterClient(config) {
           abuse: ruleConfig.abuse || global.abuse
         });
 
-        try {
-
-          await axios.post(
-            `${GATEWAYS[0]}/gateway/event`,
-            {
-              rule,
-              key,
-              allowed: result.allowed
-            },
-            {
-              headers: {
-                "x-api-key": config.apiKey
-              }
-            }
-          );
-
-        } catch (err) {
-          
-        }
+       analyticsQueue.push({
+        rule,
+        key,
+        allowed: result.allowed
+      });
 
         return result;
 
