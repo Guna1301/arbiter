@@ -92,7 +92,7 @@ export function createArbiterClient(config) {
       try {
 
         await axios.post(
-          `${GATEWAYS[0]}/gateway/event/batch`,
+          `${GATEWAYS[0]}/gateway/event`,
           { events: batch },
           {
             headers:{
