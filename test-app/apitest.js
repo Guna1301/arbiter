@@ -1,18 +1,31 @@
 import { createArbiterClient } from "../nodejs-sdk/index.js";
 
 const arbiter = createArbiterClient({
-  apiKey: "arb_live_f7c3eaa2c6756c6c3bea6cd256bbcdc98fba10f856cd9833"
+  apiKey: "arb_live_9d12b2511d0236742d379e9e69b074ec5af0d5585b78ceaa24af6a839019510a",
+  rules: {
+    login: {
+      limit: 5
+    }
+  }
 });
 
-await arbiter.init();
+async function runTest() {
 
-for (let i = 0; i < 5; i++) {
+  await arbiter.init();
 
-  const result = await arbiter.protect({
-    key: "192.168.1.10",
-    rule: "login"
-  });
+  console.log("Testing Arbiter...\n");
 
-  console.log(result);
+  for (let i = 1; i <= 10; i++) {
+
+    const result = await arbiter.protect({
+      key: "192.168.1.10",
+      rule: "login"
+    });
+
+    console.log(`Request ${i}:`, result);
+
+  }
 
 }
+
+runTest();

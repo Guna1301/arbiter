@@ -9,6 +9,10 @@ const GATEWAYS = [
 
 export function createArbiterClient(config) {
 
+  if (!config.apiKey) {
+    throw new Error("apiKey is required");
+  }
+
   const client = new ArbiterClient();
 
   let cloudConfig = null;
@@ -46,7 +50,6 @@ export function createArbiterClient(config) {
 
   }
 
-
   async function refreshConfig() {
 
     for (const gateway of GATEWAYS) {
@@ -78,133 +81,120 @@ export function createArbiterClient(config) {
 
   }
 
-  if (config.apiKey) {
-    setInterval(refreshConfig, 60000);
-  }
+
+  setInterval(refreshConfig, 60000);
+
 
   setInterval(async () => {
-      if (!config.apiKey) return;
 
-      if (analyticsQueue.length === 0) return;
+    if (analyticsQueue.length === 0) return;
 
-      const batch = analyticsQueue.splice(0, analyticsQueue.length);
+    const batch = analyticsQueue.splice(0, analyticsQueue.length);
 
-      try {
-
-        await axios.post(
-          `${GATEWAYS[0]}/gateway/event`,
-          { events: batch },
-          {
-            headers:{
-              "x-api-key": config.apiKey
-            }
+    try {
+      await axios.post(
+        `${GATEWAYS[0]}/gateway/event/batch`,
+        {events: batch},
+        {
+          headers: {
+            "x-api-key": config.apiKey
           }
-        );
+        }
+      )
+    } catch (error) {
+      
+    }
 
-      } catch(err) {
-       
+  }, 2000);
+
+
+  function mergeConfig(cloud, local) {
+
+    if (!local) return cloud;
+
+    return {
+      global: {
+        algorithm: local.defaultAlgorithm || cloud.global.algorithm,
+        whitelist: local.whitelist || cloud.global.whitelist,
+        blacklist: local.blacklist || cloud.global.blacklist,
+        abuse: local.abuse || cloud.global.abuse
+      },
+
+      rules: {
+        ...cloud.rules,
+        ...Object.fromEntries(
+          Object.entries(local.rules || {}).map(([key, value]) => [
+            key,
+            {
+              ...cloud.rules[key],
+              ...value
+            }
+          ])
+        )
       }
+    };
 
-    }, 2000);
+  }
+
+  async function executeDecision({ key, ruleConfig, global }) {
+
+    return client.decide({
+      key: normalizeKey(key),
+      rule: {
+        limit: ruleConfig.limit,
+        window: ruleConfig.window,
+        algorithm: ruleConfig.algorithm || global.algorithm
+      },
+      policy: {
+        whitelist: ruleConfig.policy?.whitelist || global.whitelist,
+        blacklist: ruleConfig.policy?.blacklist || global.blacklist
+      },
+      abuse: ruleConfig.abuse || global.abuse
+    });
+
+  }
 
   return {
-    async init() {
 
-      if (config.apiKey) {
+    async init() {
+      await fetchConfig();
+    },
+
+    async protect({ key, rule }) {
+
+      if (!cloudConfig) {
         await fetchConfig();
       }
 
-    },
-    async protect({ key, rule }) {
+      const finalConfig = mergeConfig(cloudConfig, config);
 
-      // if api then cloud mode
-      if (config.apiKey) {
-
-        if (!cloudConfig) {
-          await fetchConfig();
-        }
-
-        const ruleConfig = cloudConfig.rules[rule];
-
-        if (!ruleConfig) {
-          throw new Error(`Rule not found: ${rule}`);
-        }
-
-        const global = cloudConfig.global;
-
-        const result = await client.decide({
-          key: normalizeKey(key),
-          rule: {
-            limit: ruleConfig.limit,
-            window: ruleConfig.window,
-            algorithm: ruleConfig.algorithm || global.algorithm
-          },
-          policy: {
-            whitelist: ruleConfig.policy?.whitelist || global.whitelist,
-            blacklist: ruleConfig.policy?.blacklist || global.blacklist
-          },
-          abuse: ruleConfig.abuse || global.abuse
-        });
-
-       analyticsQueue.push({
-        rule,
-        key,
-        allowed: result.allowed
-      });
-
-        return result;
-
-      }
-
-      // else local mode
-      const defaultAlgorithm =
-        config.defaultAlgorithm || "leaky-bucket";
-
-      const globalWhitelist =
-        (config.whitelist || []).map(normalizeKey);
-
-      const globalBlacklist =
-        (config.blacklist || []).map(normalizeKey);
-
-      const globalAbuse = config.abuse || null;
-
-      const ruleConfig = config.rules[rule];
+      const ruleConfig = finalConfig.rules[rule];
 
       if (!ruleConfig) {
         throw new Error(`Rule not found: ${rule}`);
       }
 
-      const algorithm =
-        ruleConfig.algorithm || defaultAlgorithm;
+      const global = finalConfig.global;
 
-      const policy = {
-        whitelist: (ruleConfig.policy?.whitelist || globalWhitelist)
-          .map(normalizeKey),
-
-        blacklist: (ruleConfig.policy?.blacklist || globalBlacklist)
-          .map(normalizeKey)
-      };
-
-      const abuse =
-        ruleConfig.abuse || globalAbuse;
-
-      return client.decide({
-        key: normalizeKey(key),
-        rule: {
-          limit: ruleConfig.limit,
-          window: ruleConfig.window,
-          algorithm
-        },
-        policy,
-        abuse
+      const result = await executeDecision({
+        key,
+        ruleConfig,
+        global
       });
+
+      analyticsQueue.push({
+        rule,
+        key,
+        allowed: result.allowed
+      });
+
+      return result;
 
     }
 
   };
 
 }
-
 
 function normalizeKey(key) {
 
