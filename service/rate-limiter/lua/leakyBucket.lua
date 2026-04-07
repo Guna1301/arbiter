@@ -4,6 +4,7 @@
 -- ARGV[3] = now (ms)
 
 local data = redis.call("GET", KEYS[1])
+
 local tokens
 local last
 
@@ -34,6 +35,10 @@ if tokens > 0 then
 end
 
 local ttl = math.ceil(window)
-redis.call("SET", KEYS[1], cjson.encode({ tokens = tokens, last = last }), "EX", ttl)
+
+redis.call("SET", KEYS[1], cjson.encode({
+  tokens = tokens,
+  last = last
+}), "EX", ttl)
 
 return { allowed, tokens }

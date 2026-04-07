@@ -1,83 +1,121 @@
 import express from "express";
 import PolicyEngine from "../policy/PolicyEngine.js";
-import LimiterFactory from "../limiter/LimiterFactory.js";
+import LimiterFactory from "../rate-limiter/limiters/LimiterFactory.js";
 import AbuseDetector from "../abuse/AbuseDetector.js";
 
-const router = express.Router();
 
 export default function createDecideRoute({ store, metrics }) {
+  const router = express.Router();
+
   router.post("/", async (req, res) => {
-
-    const callerKey = req.headers["x-forwarded-for"] || req.ip;
-    const internalLimiter = LimiterFactory.create(INTERNAL_RULE.algorithm, store);
-
-    const internalDecision = await internalLimiter.consume(`internal:${callerKey}`, INTERNAL_RULE.limit, INTERNAL_RULE.window);
-
-    if(!internalDecision.allowed){
-      return res.status(429).json({
-        allowed: false,
-        reason: "internal_rate_limit_exceeded",
-        resetIn: internalDecision.resetIn
-      });
-    }
     const start = Date.now();
 
-    const { key, rule, policy, abuse: abuseConfig } = req.body;
+    try {
+      const callerKey = (req.headers["x-forwarded-for"] || req.ip || "")
+        .split(",")[0]
+        .trim();
 
-    if (!key || !rule || !rule.limit || !rule.window) {
-      const latency = Date.now() - start;
-      metrics.recordRequest(latency, false);
-      return res.status(400).json({
-        error: "key and rule with limit and window are required"
+      const internalLimiter = LimiterFactory.create(
+        INTERNAL_RULE.algorithm,
+        store
+      );
+
+      const internalDecision = await internalLimiter.consume(
+        `internal:${callerKey}`,
+        INTERNAL_RULE.limit,
+        INTERNAL_RULE.window
+      );
+
+      if (!internalDecision.allowed) {
+        return res.status(429).json({
+          allowed: false,
+          reason: "internal_rate_limit_exceeded",
+          resetIn: internalDecision.resetIn
+        });
+      }
+
+      const { key, rule, policy, abuse: abuseConfig } = req.body;
+
+      if (
+        !key ||
+        !rule ||
+        typeof rule.limit !== "number" ||
+        typeof rule.window !== "number"
+      ) {
+        const latency = Date.now() - start;
+        metrics.recordRequest(latency, false);
+
+        return res.status(400).json({
+          allowed: false,
+          error: "Invalid payload: key, rule.limit, rule.window required"
+        });
+      }
+
+      const policyEngine = new PolicyEngine({
+        whitelist: policy?.whitelist || [],
+        blacklist: policy?.blacklist || []
       });
-    }
 
-    const algorithm = rule.algorithm || "leaky-bucket";
-    const whitelist = policy?.whitelist || [];
-    const blacklist = policy?.blacklist || [];
+      const policyResult = policyEngine.check(key);
 
-    const policyEngine = new PolicyEngine({ whitelist, blacklist });
-    const policyResult = policyEngine.check(key);
+      if (policyResult.allowed !== null) {
+        const latency = Date.now() - start;
+        metrics.recordRequest(latency, policyResult.allowed);
 
-    if (policyResult.allowed !== null) {
+        return res.json({
+          allowed: policyResult.allowed,
+          reason: policyResult.reason
+        });
+      }
+
+      const algorithm = rule.algorithm || "leaky-bucket";
+
+      const limiter = LimiterFactory.create(algorithm, store);
+
+      const decision = await limiter.consume(
+        key,
+        rule.limit,
+        rule.window
+      );
+
+      let abuseResult = { banned: false };
+
+      if (abuseConfig) {
+        const abuseDetector = new AbuseDetector(store, abuseConfig);
+        abuseResult = await abuseDetector.record(key, decision.allowed);
+      }
+
+      if (abuseResult.banned) {
+        const latency = Date.now() - start;
+        metrics.recordRequest(latency, false);
+
+        return res.json({
+          allowed: false,
+          reason: "abuse_detected",
+          resetIn: abuseResult.resetIn
+        });
+      }
+
       const latency = Date.now() - start;
-      metrics.recordRequest(latency, policyResult.allowed);
+      metrics.recordRequest(latency, decision.allowed);
+
       return res.json({
-        allowed: policyResult.allowed,
-        reason: policyResult.reason
+        allowed: decision.allowed,
+        remaining: decision.remaining,
+        resetIn: decision.resetIn
       });
-    }
 
-    const limiter = LimiterFactory.create(algorithm, store);
-    if (!limiter) {
+    } catch (err) {
+      console.error("Decide route error:", err);
+
       const latency = Date.now() - start;
       metrics.recordRequest(latency, false);
-      return res.status(400).json({
-        error: `unknown algorithm: ${algorithm}`
-      });
-    }
 
-    const decision = await limiter.consume(key, rule.limit, rule.window);
-
-    let abuseResult = { banned: false };
-    if (abuseConfig) {
-      const abuseDetector = new AbuseDetector(store, abuseConfig);
-      abuseResult = await abuseDetector.record(key, decision.allowed);
-    }
-
-    if (abuseResult.banned) {
-      const latency = Date.now() - start;
-      metrics.recordRequest(latency, false);
-      return res.json({
+      return res.status(500).json({
         allowed: false,
-        resetIn: abuseResult.resetIn,
-        reason: "abuse_detected"
+        error: "internal_error"
       });
     }
-
-    const latency = Date.now() - start;
-    metrics.recordRequest(latency, decision.allowed);
-    return res.json(decision);
   });
 
   return router;
