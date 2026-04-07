@@ -13,7 +13,7 @@ export function createArbiterClient(config) {
     throw new Error("apiKey is required");
   }
 
-  const client = new ArbiterClient();
+  const client = new ArbiterClient(config.apiKey);
 
   let cloudConfig = null;
   let version = null;

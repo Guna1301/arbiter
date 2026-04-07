@@ -3,8 +3,8 @@ import { ENDPOINTS } from "./endpoints.js";
 
 export default class ArbiterClient {
 
-  constructor() {
-
+  constructor(apiKey) {
+    this.apiKey = apiKey;
     this.timeout = 2000;
 
     this.primary = ENDPOINTS.primary;
@@ -30,7 +30,12 @@ export default class ArbiterClient {
 
       const res = await this.primaryClient.post(
         "/decide",
-        payload
+        payload,
+        {
+          headers: {
+            "x-api-key": this.apiKey
+          }
+        }
       );
 
       return res.data;
@@ -45,7 +50,12 @@ export default class ArbiterClient {
 
         const res = await this.secondaryClient.post(
           "/decide",
-          payload
+          payload,
+          {
+            headers: {
+              "x-api-key": this.apiKey
+            }
+          }
         );
 
         return res.data;

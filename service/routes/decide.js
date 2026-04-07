@@ -8,6 +8,15 @@ export default function createDecideRoute({ store, metrics }) {
   const router = express.Router();
 
   router.post("/", async (req, res) => {
+    const apiKey = req.headers["x-api-key"];
+
+    if (!apiKey) {
+      return res.status(401).json({
+        allowed: false,
+        error: "missing_api_key"
+      });
+    }
+
     const start = Date.now();
 
     try {
@@ -34,7 +43,16 @@ export default function createDecideRoute({ store, metrics }) {
         });
       }
 
-      const { key, rule, policy, abuse: abuseConfig } = req.body;
+      const { key } = req.body;
+
+      let { rule, policy, abuse: abuseConfig } = req.body;
+
+      if (rule?.limit > 10000) {
+        return res.status(400).json({
+          allowed: false,
+          error: "limit too high"
+        });
+      }
 
       if (
         !key ||
