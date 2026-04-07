@@ -1,50 +1,59 @@
-import express from 'express';
-import dotenv from 'dotenv';
-import { createClient } from 'redis';
+import express from "express";
+import dotenv from "dotenv";
 
-// import MemoryStore from './storage/MemoryStore.js';
-import RedisStore from './storage/RedisStore.js';
+import { validateEnv } from "./config/env.js";
+import { createRedisClient } from "./config/redis.js";
 
-import AbuseDetector from './abuse/AbuseDetector.js';
-import createDecideRoute from './routes/decide.js';
+import RedisStore from "./storage/RedisStore.js";
+import AbuseDetector from "./abuse/AbuseDetector.js";
 import MetricsCollector from "./metrics/MetricsCollector.js";
+
+import createDecideRoute from "./routes/decide.js";
 import createMetricsRoute from "./routes/metrics.js";
-import createHealthRoute from './routes/health.js';
-import createWhoamiRoute from './routes/whoami.js';
+import createWhoamiRoute from "./routes/whoami.js";
 
 dotenv.config();
+validateEnv();
 
 const app = express();
 app.use(express.json());
 
-const redisUrl = process.env.REDIS_URL;
-
-if (!redisUrl) {
-  throw new Error("REDIS_URL is not set");
-}
-
-const redisClient = createClient({
-  url: redisUrl
-});
-
-await redisClient.connect();
-
-// const store = new MemoryStore();
-const store = new RedisStore(redisClient);
-
-const abuse = new AbuseDetector(store, {threshold: 5, banTime: 60});
-
-const metrics = new MetricsCollector();
-
-
-app.use("/decide", createDecideRoute({store, abuse, metrics}));
-app.use("/metrics", createMetricsRoute(metrics));
-app.use("/health", createHealthRoute());
-app.use("/whoami", createWhoamiRoute());
-
 const PORT = process.env.PORT || 4000;
 
-app.listen(PORT, ()=>{
-    console.log(`arbiter service running on port ${PORT}`);
-    console.log(`running at: http://localhost:${PORT}`);
-})
+async function startServer() {
+  try {
+    const redisClient = createRedisClient();
+    await redisClient.connect();
+
+    const store = new RedisStore(redisClient);
+    const abuse = new AbuseDetector(store, {
+      threshold: 5,
+      banTime: 60
+    });
+
+    const metrics = new MetricsCollector();
+
+    app.use("/decide", createDecideRoute({ store, abuse, metrics }));
+    app.use("/metrics", createMetricsRoute(metrics));
+    app.use("/whoami", createWhoamiRoute());
+
+    app.get("/health", async (req, res) => {
+      try {
+        await redisClient.ping();
+        res.status(200).json({ status: "ok", redis: "connected" });
+      } catch {
+        res.status(500).json({ status: "error", redis: "down" });
+      }
+    });
+
+    app.listen(PORT, () => {
+      console.log(`Arbiter running on port ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  }
+}
+
+startServer();
