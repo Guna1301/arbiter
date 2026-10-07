@@ -2,54 +2,118 @@ import express from "express";
 import "dotenv/config";
 import { createArbiterClient } from "arbiter-sdk";
 
+const apiKey = process.env.ARBITER_API_KEY;
+
+if (!apiKey) {
+  throw new Error(
+    "ARBITER_API_KEY is required. Create a test-app/.env file with an active Arbiter API key."
+  );
+}
 
 const app = express();
+const port = Number(process.env.PORT || 5000);
 
 const arbiter = createArbiterClient({
-  apiKey: process.env.ARBITER_API_KEY || "local-development-key",
+  apiKey,
   defaultAlgorithm: "leaky-bucket",
-  whitelist: ["admin_1", "127.0.0.1"],
-  blacklist: ["banned_user", "127.0.0.2"],
-  abuse: {
-    threshold: 5,
-    banTime: 120
-  },
+  whitelist: ["admin_1"],
+  blacklist: ["banned_user"],
   rules: {
     login: {
       limit: 3,
       window: 10,
       algorithm: "leaky-bucket",
-      policy: {
-        whitelist: ["admin_login_ip"],
-        blacklist: ["127.0.0.3"]
-      },
-
       abuse: {
         threshold: 2,
-        banTime: 300
+        banTime: 60
       }
     },
     search: {
-      limit: 20,
-      window: 60
+      limit: 5,
+      window: 10,
+      algorithm: "token-bucket"
     }
   }
 });
 
-app.get("/login", async (req, res) => {
-    console.log(`Incoming request from IP: ${req.ip}`);
-  const decision = await arbiter.protect({
-    key: req.ip,
-    rule: "login"
-  });
+function clientKey(req) {
+  return req.get("x-demo-key") || req.ip;
+}
 
+async function protect(req, rule) {
+  return arbiter.protect({
+    key: clientKey(req),
+    rule
+  });
+}
+
+function sendDecision(res, decision, allowedMessage) {
   if (!decision.allowed) {
-    return res.status(429).json(decision);
+    return res.status(429).json({
+      message: "Request blocked by Arbiter",
+      decision
+    });
   }
 
-  res.json({ message: "Login allowed", decision });
+  return res.json({
+    message: allowedMessage,
+    decision
+  });
+}
+
+app.get("/", (req, res) => {
+  res.json({
+    name: "Arbiter demo application",
+    endpoints: {
+      login: "GET /login",
+      search: "GET /search",
+      admin: "GET /admin",
+      health: "GET /health"
+    },
+    clientKeyHeader: "x-demo-key"
+  });
 });
 
-app.listen(5000, () => {
-  console.log("Demo app running at http://localhost:5000/login");
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.get("/login", async (req, res, next) => {
+  try {
+    const decision = await protect(req, "login");
+    return sendDecision(res, decision, "Login request allowed");
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get("/search", async (req, res, next) => {
+  try {
+    const decision = await protect(req, "search");
+    return sendDecision(res, decision, "Search request allowed");
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.get("/admin", async (req, res, next) => {
+  try {
+    const decision = await protect(req, "login");
+    return sendDecision(res, decision, "Admin request allowed");
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.use((error, req, res, next) => {
+  console.error("Demo application error:", error);
+  res.status(502).json({
+    message: "Arbiter decision unavailable",
+    error: error.message
+  });
+});
+
+app.listen(port, () => {
+  console.log(`Arbiter demo app running at http://localhost:${port}`);
+  console.log("Try: npm run load-test");
 });

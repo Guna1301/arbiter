@@ -2,8 +2,13 @@
   "name": "demo-app",
   "type": "module",
   "version": "1.0.0",
+  "scripts": {
+    "start": "node app.js",
+    "load-test": "node apitest.js /login 8",
+    "load-test:search": "node apitest.js /search 8"
+  },
   "dependencies": {
-    "arbiter-sdk": "^1.0.0",
+    "arbiter-sdk": "^1.2.0",
     "dotenv": "^17.2.3",
     "express": "^4.19.2"
   }

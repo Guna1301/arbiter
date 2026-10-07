@@ -1,31 +1,23 @@
-import { createArbiterClient } from "../nodejs-sdk/index.js";
+const baseUrl = process.env.DEMO_URL || "http://localhost:5000";
+const demoKey = process.env.DEMO_KEY || "demo-client";
+const endpoint = process.argv[2] || "/login";
+const count = Number(process.argv[3] || 8);
 
-const arbiter = createArbiterClient({
-  apiKey: "arb_live_9d12b2511d0236742d379e9e69b074ec5af0d5585b78ceaa24af6a839019510a",
-  rules: {
-    login: {
-      limit: 5
-    }
-  }
-});
-
-async function runTest() {
-
-  await arbiter.init();
-
-  console.log("Testing Arbiter...\n");
-
-  for (let i = 1; i <= 10; i++) {
-
-    const result = await arbiter.protect({
-      key: "192.168.1.10",
-      rule: "login"
-    });
-
-    console.log(`Request ${i}:`, result);
-
-  }
-
+if (!endpoint.startsWith("/")) {
+  throw new Error("Endpoint must start with '/', for example /login or /search");
 }
 
-runTest();
+console.log(`Calling ${endpoint} ${count} times as ${demoKey}...`);
+
+for (let requestNumber = 1; requestNumber <= count; requestNumber += 1) {
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    headers: {
+      "x-demo-key": demoKey
+    }
+  });
+
+  const body = await response.json();
+  console.log(
+    `${requestNumber}: HTTP ${response.status} | allowed=${body.decision?.allowed ?? "n/a"} | remaining=${body.decision?.remaining ?? "n/a"} | reason=${body.decision?.reason ?? "none"}`
+  );
+}
