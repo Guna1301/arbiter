@@ -1,4 +1,5 @@
 export const ENDPOINTS = {
+  gateway: "https://arbiter-backend-ipbl.onrender.com",
   primary: "https://arbiter-service.onrender.com",
-  secondary: "http://54.172.120.251"
+  secondary: null // aws instance endpoint
 };

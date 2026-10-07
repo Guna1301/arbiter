@@ -68,6 +68,10 @@ app.post("/login", async (req, res) => {
 });
 ```
 
+The SDK internally connects to the Arbiter web backend for configuration and
+analytics. SDK users only need to provide their API key and optional local
+rule overrides.
+
 
 
 ## Core Concept

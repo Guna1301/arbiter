@@ -1,11 +1,8 @@
 import ArbiterClient from "./ArbiterClient.js";
 import axios from "axios";
+import { ENDPOINTS } from "./endpoints.js";
 
 const analyticsQueue = [];
-
-const GATEWAYS = [
-  "http://localhost:5000"
-];
 
 export function createArbiterClient(config) {
 
@@ -21,64 +18,45 @@ export function createArbiterClient(config) {
 
   async function fetchConfig() {
 
-    for (const gateway of GATEWAYS) {
+    try {
+      const res = await axios.get(
+        `${ENDPOINTS.gateway}/gateway/config`,
+        {
+          headers: {
+            "x-api-key": config.apiKey
+          },
+          timeout: 2000
+        }
+      );
 
-      try {
-
-        const res = await axios.get(
-          `${gateway}/gateway/config`,
-          {
-            headers: {
-              "x-api-key": config.apiKey
-            },
-            timeout: 2000
-          }
-        );
-
-        cloudConfig = res.data;
-        version = res.data.version;
-
-        return;
-
-      } catch (err) {
-        continue;
-      }
-
+      cloudConfig = res.data;
+      version = res.data.version;
+      return;
+    } catch (err) {
+      throw new Error("Arbiter gateway unavailable", { cause: err });
     }
-
-    throw new Error("All Arbiter gateways unavailable");
-
   }
 
   async function refreshConfig() {
 
-    for (const gateway of GATEWAYS) {
-
-      try {
-
-        const res = await axios.get(
-          `${gateway}/gateway/config`,
-          {
-            headers: {
-              "x-api-key": config.apiKey
-            },
-            timeout: 2000
-          }
-        );
-
-        if (res.data.version !== version) {
-          cloudConfig = res.data;
-          version = res.data.version;
+    try {
+      const res = await axios.get(
+        `${ENDPOINTS.gateway}/gateway/config`,
+        {
+          headers: {
+            "x-api-key": config.apiKey
+          },
+          timeout: 2000
         }
+      );
 
-        return;
-
-      } catch (err) {
-        continue;
+      if (res.data.version !== version) {
+        cloudConfig = res.data;
+        version = res.data.version;
       }
-
+    } catch (err) {
+      console.error("Arbiter gateway config refresh failed:", err);
     }
-
   }
 
 
@@ -93,7 +71,7 @@ export function createArbiterClient(config) {
 
     try {
       await axios.post(
-        `${GATEWAYS[0]}/gateway/event/batch`,
+        `${ENDPOINTS.gateway}/gateway/event/batch`,
         {events: batch},
         {
           headers: {
@@ -143,7 +121,9 @@ export function createArbiterClient(config) {
       rule: {
         limit: ruleConfig.limit,
         window: ruleConfig.window,
-        algorithm: ruleConfig.algorithm || global.algorithm
+        algorithm: normalizeAlgorithm(
+          ruleConfig.algorithm || global.algorithm
+        )
       },
       policy: {
         whitelist: ruleConfig.policy?.whitelist || global.whitelist,
@@ -194,6 +174,12 @@ export function createArbiterClient(config) {
 
   };
 
+}
+
+function normalizeAlgorithm(algorithm) {
+  if (algorithm === "token_bucket") return "token-bucket";
+  if (algorithm === "leaky_bucket") return "leaky-bucket";
+  return algorithm;
 }
 
 function normalizeKey(key) {
