@@ -10,8 +10,13 @@ local lastRefill
 
 if data then
   local decoded = cjson.decode(data)
-  tokens = decoded.tokens
-  lastRefill = decoded.lastRefill
+  if decoded.tokens and decoded.lastRefill then
+    tokens = decoded.tokens
+    lastRefill = decoded.lastRefill
+  else
+    tokens = tonumber(ARGV[1])
+    lastRefill = tonumber(ARGV[3])
+  end
 else
   tokens = tonumber(ARGV[1])
   lastRefill = tonumber(ARGV[3])

@@ -20,9 +20,10 @@ export default class TokenBucketLimiter extends LimiterInterface {
 
   async consume(key, limit, windowSec) {
     const now = Date.now();
+    const bucketKey = `token-bucket:${key}`;
 
     const result = await this.store.client.eval(this.script, {
-      keys: [key],
+      keys: [bucketKey],
       arguments: [
         String(limit),
         String(windowSec),

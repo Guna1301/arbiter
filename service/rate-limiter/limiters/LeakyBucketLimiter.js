@@ -20,9 +20,10 @@ export default class LeakyBucketLimiter extends LimiterInterface {
 
   async consume(key, limit, windowSec) {
     const now = Date.now();
+    const bucketKey = `leaky-bucket:${key}`;
 
     const result = await this.store.client.eval(this.script, {
-      keys: [key],
+      keys: [bucketKey],
       arguments: [
         String(limit),
         String(windowSec),
@@ -33,7 +34,7 @@ export default class LeakyBucketLimiter extends LimiterInterface {
     return {
       allowed: result[0] === 1,
       remaining: result[1],
-      resetIn: windowSec
+      resetIn: result[2]
     };
   }
 }

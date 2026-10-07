@@ -2,6 +2,7 @@ import express from "express";
 import PolicyEngine from "../policy/PolicyEngine.js";
 import LimiterFactory from "../rate-limiter/limiters/LimiterFactory.js";
 import AbuseDetector from "../abuse/AbuseDetector.js";
+import { INTERNAL_RULE } from "../config/defaultConfig.js";
 
 
 export default function createDecideRoute({ store, metrics }) {
@@ -58,7 +59,9 @@ export default function createDecideRoute({ store, metrics }) {
         !key ||
         !rule ||
         typeof rule.limit !== "number" ||
-        typeof rule.window !== "number"
+        typeof rule.window !== "number" ||
+        rule.limit <= 0 ||
+        rule.window <= 0
       ) {
         const latency = Date.now() - start;
         metrics.recordRequest(latency, false);

@@ -1,10 +1,12 @@
 import express from "express";
+import "dotenv/config";
 import { createArbiterClient } from "arbiter-sdk";
 
 
 const app = express();
 
 const arbiter = createArbiterClient({
+  apiKey: process.env.ARBITER_API_KEY || "local-development-key",
   defaultAlgorithm: "leaky-bucket",
   whitelist: ["admin_1", "127.0.0.1"],
   blacklist: ["banned_user", "127.0.0.2"],
