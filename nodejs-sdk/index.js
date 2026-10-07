@@ -1,6 +1,6 @@
 import ArbiterClient from "./ArbiterClient.js";
-import axios from "axios";
 import { ENDPOINTS } from "./endpoints.js";
+import { requestJson } from "./http.js";
 
 const analyticsQueue = [];
 
@@ -19,18 +19,14 @@ export function createArbiterClient(config) {
   async function fetchConfig() {
 
     try {
-      const res = await axios.get(
-        `${ENDPOINTS.gateway}/gateway/config`,
-        {
-          headers: {
-            "x-api-key": config.apiKey
-          },
-          timeout: 2000
+      const res = await requestJson(`${ENDPOINTS.gateway}/gateway/config`, {
+        headers: {
+          "x-api-key": config.apiKey
         }
-      );
+      });
 
-      cloudConfig = res.data;
-      version = res.data.version;
+      cloudConfig = res;
+      version = res.version;
       return;
     } catch (err) {
       throw new Error("Arbiter gateway unavailable", { cause: err });
@@ -40,19 +36,15 @@ export function createArbiterClient(config) {
   async function refreshConfig() {
 
     try {
-      const res = await axios.get(
-        `${ENDPOINTS.gateway}/gateway/config`,
-        {
-          headers: {
-            "x-api-key": config.apiKey
-          },
-          timeout: 2000
+      const res = await requestJson(`${ENDPOINTS.gateway}/gateway/config`, {
+        headers: {
+          "x-api-key": config.apiKey
         }
-      );
+      });
 
-      if (res.data.version !== version) {
-        cloudConfig = res.data;
-        version = res.data.version;
+      if (res.version !== version) {
+        cloudConfig = res;
+        version = res.version;
       }
     } catch (err) {
       console.error("Arbiter gateway config refresh failed:", err);
@@ -70,15 +62,14 @@ export function createArbiterClient(config) {
     const batch = analyticsQueue.splice(0, analyticsQueue.length);
 
     try {
-      await axios.post(
-        `${ENDPOINTS.gateway}/gateway/event/batch`,
-        {events: batch},
-        {
-          headers: {
-            "x-api-key": config.apiKey
-          }
-        }
-      )
+      await requestJson(`${ENDPOINTS.gateway}/gateway/event/batch`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": config.apiKey
+        },
+        body: JSON.stringify({ events: batch })
+      });
     } catch (error) {
       
     }

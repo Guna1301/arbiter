@@ -38,6 +38,8 @@ It is a **centralized decision system** where:
 npm install arbiter-sdk
 ```
 
+The SDK requires Node.js 18 or newer and uses the native `fetch` API.
+
 
 
 ## Quick Start

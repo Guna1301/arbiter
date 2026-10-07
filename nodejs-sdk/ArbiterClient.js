@@ -1,5 +1,5 @@
-import axios from "axios";
 import { ENDPOINTS } from "./endpoints.js";
+import { requestJson } from "./http.js";
 
 export default class ArbiterClient {
 
@@ -10,55 +10,23 @@ export default class ArbiterClient {
     this.primary = ENDPOINTS.primary;
     this.secondary = ENDPOINTS.secondary;
 
-    this.primaryClient = axios.create({
-      baseURL: this.primary,
-      timeout: this.timeout
-    });
-
-    if (this.secondary) {
-      this.secondaryClient = axios.create({
-        baseURL: this.secondary,
-        timeout: this.timeout
-      });
-    }
-
   }
 
   async decide(payload) {
 
     try {
 
-      const res = await this.primaryClient.post(
-        "/decide",
-        payload,
-        {
-          headers: {
-            "x-api-key": this.apiKey
-          }
-        }
-      );
-
-      return res.data;
+      return await this.requestDecision(this.primary, payload);
 
     } catch (err) {
 
-      if (!this.secondaryClient) {
+      if (!this.secondary) {
         throw err;
       }
 
       try {
 
-        const res = await this.secondaryClient.post(
-          "/decide",
-          payload,
-          {
-            headers: {
-              "x-api-key": this.apiKey
-            }
-          }
-        );
-
-        return res.data;
+        return await this.requestDecision(this.secondary, payload);
 
       } catch (error) {
 
@@ -70,6 +38,17 @@ export default class ArbiterClient {
 
     }
 
+  }
+
+  async requestDecision(endpoint, payload) {
+    return requestJson(`${endpoint}/decide`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": this.apiKey
+      },
+      body: JSON.stringify(payload)
+    }, this.timeout);
   }
 
 }

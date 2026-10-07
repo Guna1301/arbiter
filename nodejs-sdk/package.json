@@ -1,6 +1,6 @@
 {
   "name": "arbiter-sdk",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Official Node.js SDK for the Arbiter traffic protection service",
   "type": "module",
   "main": "index.js",
@@ -17,12 +17,13 @@
   ],
   "author": "Guna Sai",
   "license": "MIT",
-  "dependencies": {
-    "axios": "^1.13.4"
+  "engines": {
+    "node": ">=18"
   },
   "files": [
     "index.js",
     "ArbiterClient.js",
+    "http.js",
     "endpoints.js",
     "README.md"
   ]
