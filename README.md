@@ -5,7 +5,6 @@ Developer-first, distributed traffic protection service for backend APIs.
 
 Arbiter provides rate limiting, abuse detection, and policy enforcement as a distributed service with an official Node.js SDK.
 
-
 ## What is Arbiter?
 
 Arbiter is a service that protects backend APIs from abuse and excessive traffic, regardless of the programming language used.
